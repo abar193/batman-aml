@@ -13,8 +13,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class BatEngineTest {
+
   @Test
   public void testInit() {
+    // Just test if my structure is even working
     BatEngine be = new BatEngine();
     be.init();
 
@@ -22,18 +24,18 @@ public class BatEngineTest {
     be.storeEntity(new LegalEntity("L2", "Entity 2"));
     be.storeEntity(new LegalEntity("L3", "Entity 3"));
 
-    be.storePerson(new Person("P1", "Person First",  ClientStatus.GREEN));
-    be.storePerson(new Person("P2", "Person First",  ClientStatus.YELLOW));
-    be.storePerson(new Person("P3", "Person First",  ClientStatus.RED));
+    be.storePerson(new Person("P1", "Person First", ClientStatus.GREEN));
+    be.storePerson(new Person("P2", "Person First", ClientStatus.YELLOW));
+    be.storePerson(new Person("P3", "Person First", ClientStatus.RED));
 
-    be.linkPersonAndBusiness("P1", "L1", BigDecimal.valueOf(100));
+    be.linkPersonAndBusiness("P1", "L1", BigDecimal.valueOf(1));
 
-    be.linkPersonAndBusiness("P1", "L2", BigDecimal.valueOf(20));
-    be.linkPersonAndBusiness("P2", "L2", BigDecimal.valueOf(80));
+    be.linkPersonAndBusiness("P1", "L2", BigDecimal.valueOf(0.20));
+    be.linkPersonAndBusiness("P2", "L2", BigDecimal.valueOf(0.80));
 
-    be.linkPersonAndBusiness("P1", "L3", BigDecimal.valueOf(5));
-    be.linkPersonAndBusiness("P2", "L3", BigDecimal.valueOf(45));
-    be.linkPersonAndBusiness("P3", "L3", BigDecimal.valueOf(50));
+    be.linkPersonAndBusiness("P1", "L3", BigDecimal.valueOf(0.05));
+    be.linkPersonAndBusiness("P2", "L3", BigDecimal.valueOf(0.45));
+    be.linkPersonAndBusiness("P3", "L3", BigDecimal.valueOf(0.50));
 
     be.shutdown();
   }
@@ -57,7 +59,76 @@ public class BatEngineTest {
     Person p = br.getPerson("P3");
     LegalEntity le = br.getEntity("L3");
 
-    br.getEntity("L3").getShares().forEach(s -> System.out.println(s));
-    br.getEntity("L3").getOwners().forEach(s -> System.out.println(s));
+    br.getEntity("L3").getShares().forEach(System.out::println);
+    System.out.println("-");
+    br.getEntity("L3").getOwners().forEach(System.out::println);
+    System.out.println("-");
+    br.getPerson("P3").getShares().forEach(System.out::println);
+    System.out.println("-");
+    br.getPerson("P1").getShares().forEach(System.out::println);
   }
+
+  @Test
+  public void createWayneEnterprises() {
+    BatEngine be = new BatEngine();
+    be.init();
+    for (String s : new String[]{"L4", "L5", "L6", "L7", "L8", "L9", "L10"}) {
+      be.storeEntity(new LegalEntity(s, s));
+    }
+    for (String s : new String[]{"P4", "P5", "P6"}) {
+      be.storePerson(new Person(s, s, ClientStatus.GREEN));
+    }
+    be.storePerson(new Person("P7", "Bane", ClientStatus.RED));
+
+    be.linkBusinesses("L5", "L4", BigDecimal.valueOf(0.25));
+    be.linkBusinesses("L6", "L4", BigDecimal.valueOf(0.25));
+    be.linkBusinesses("L7", "L4", BigDecimal.valueOf(0.25));
+    be.linkBusinesses("L8", "L4", BigDecimal.valueOf(0.25));
+
+    be.linkBusinesses("L9", "L5", BigDecimal.valueOf(0.70));
+    be.linkPersonAndBusiness("P4", "L5", BigDecimal.valueOf(0.30));
+
+    be.linkBusinesses("L9", "L6", BigDecimal.valueOf(0.70));
+    be.linkPersonAndBusiness("P5", "L6", BigDecimal.valueOf(0.30));
+
+    be.linkBusinesses("L10", "L7", BigDecimal.valueOf(0.45));
+    be.linkPersonAndBusiness("P6", "L7", BigDecimal.valueOf(0.55));
+
+    be.linkBusinesses("L9", "L8", BigDecimal.valueOf(0.90));
+    be.linkPersonAndBusiness("P5", "L8", BigDecimal.valueOf(0.10));
+
+    be.linkBusinesses("L10", "L9", BigDecimal.valueOf(1));
+
+    be.linkPersonAndBusiness("P7", "L10", BigDecimal.valueOf(1));
+
+    be.shutdown();
+  }
+
+  @Test
+  public void testPersonCompanies() {
+    BatEngine be = new BatEngine();
+    be.init();
+    for (int i = 0; i < 7; i++) {
+      System.out.println(be.personCompanies("P" + (i + 1)));
+    }
+  }
+
+  @Test
+  public void testPersonOwnership() {
+    BatEngine be = new BatEngine();
+    be.init();
+    for (int i = 0; i < 7; i++) {
+      System.out.println(be.personOwnership("P" + (i + 1)));
+    }
+  }
+
+  @Test
+  public void testCompanyOwners() {
+    BatEngine be = new BatEngine();
+    be.init();
+    for (int i = 0; i < 10; i++) {
+      System.out.println(be.companyOwners("L" + (i + 1)));
+    }
+  }
+
 }

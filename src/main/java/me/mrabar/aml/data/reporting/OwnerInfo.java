@@ -31,6 +31,10 @@ public class OwnerInfo {
 
   @Override
   public String toString() {
-    return String.format("%s(%s) owns %s %%", owner.getName(), owner.getId(), share.toPlainString());
+    return String.format("%s(%s) owns %s %%",
+                         owner.getName(),
+                         owner.getId(),
+                         share.multiply(BigDecimal.valueOf(100)).toPlainString()
+    );
   }
 }

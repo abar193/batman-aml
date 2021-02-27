@@ -5,12 +5,23 @@ import me.mrabar.aml.data.graph.LegalEntity;
 import java.math.BigDecimal;
 
 public class Share {
-  private BigDecimal share;
   private LegalEntity entity;
+  private BigDecimal share;
 
-  public Share(BigDecimal share, LegalEntity entity) {
-    this.share = share;
+  public Share(LegalEntity entity, BigDecimal share) {
     this.entity = entity;
+    this.share = share;
+  }
+
+  // It's my project, I do what I want
+  public Share(BigDecimal share, LegalEntity entity) {
+    this.entity = entity;
+    this.share = share;
+  }
+
+  public Share(LegalEntity entity) {
+    this.entity = entity;
+    this.share = null;
   }
 
   public BigDecimal getShare() {
@@ -31,6 +42,13 @@ public class Share {
 
   @Override
   public String toString() {
-    return String.format("%s %% of %s (%s)", share.toPlainString(), entity.getName(), entity.getId());
+    if (share == null) {
+      return String.format("owns %s (%s)", entity.getName(), entity.getId());
+    }
+    return String.format("%s %% of %s (%s)",
+                         share.multiply(BigDecimal.valueOf(100)).toPlainString(),
+                         entity.getName(),
+                         entity.getId()
+    );
   }
 }

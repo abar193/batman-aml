@@ -2,12 +2,13 @@ package me.mrabar.aml.data.reporting;
 
 import me.mrabar.aml.data.graph.Person;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class PersonReport {
-  private Person owner;
-  private List<Share> shares;
+  private final Person owner;
+  private List<Share> shares = new ArrayList<>();
 
   public PersonReport(Person owner) {
     this.owner = owner;
