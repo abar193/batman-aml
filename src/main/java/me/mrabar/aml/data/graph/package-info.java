@@ -14,27 +14,7 @@
  * limitations under the License.
  */
 
-package me.mrabar.aml.data.graph;
-
-import me.mrabar.aml.data.ClientStatus;
-
 /**
- * Real, physical person - a human, that may have some shares in any given business or company.
+ * Contains data objects that go into MicroStream data storage
  */
-public class Person extends AbstractEntity {
-  protected final ClientStatus status;
-
-  public Person(String id, String name, ClientStatus status) {
-    super(id, name);
-    this.status = status;
-  }
-
-  public Person(String id, String name) {
-    super(id, name);
-    this.status = ClientStatus.UNKNOWN;
-  }
-
-  public ClientStatus getStatus() {
-    return status;
-  }
-}
+package me.mrabar.aml.data.graph;

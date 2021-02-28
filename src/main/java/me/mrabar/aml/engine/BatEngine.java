@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Anton Bardishev
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.mrabar.aml.engine;
 
 import me.mrabar.aml.data.graph.AbstractEntity;
@@ -16,7 +32,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class BatEngine {
+public class BatEngine implements BatEngineInterface {
   private final BatRoot root = new BatRoot();
 
   private final EmbeddedStorageManager storageManager = EmbeddedStorage.start(root);
@@ -54,12 +70,7 @@ public class BatEngine {
     eagerStorer.commit();
   }
 
-  /**
-   * Returns a report with all the companies that this Person has shares in.
-   * Does not determine actual amount of shares owned (Share.share == null).
-   * <p>
-   * Uses BFS and should be faster than personOwnership().
-   */
+  @Override
   public PersonReport personCompanies(String pid) {
     Person p = root.getPerson(pid);
     List<LegalEntity> businesses = new ArrayList<>();
@@ -100,10 +111,7 @@ public class BatEngine {
     }
 
     PersonReport pr = new PersonReport(p);
-    pr.setShares(shares.entrySet()
-                     .stream()
-                     .map(e -> new Share(root.getEntity(e.getKey()), e.getValue()))
-                     .collect(Collectors.toList()));
+    pr.setShares(shares.entrySet().stream().map(e -> new Share(root.getEntity(e.getKey()), e.getValue())).collect(Collectors.toList()));
     return pr;
   }
 
@@ -128,10 +136,7 @@ public class BatEngine {
     visitNodeReverse(owners, le, BigDecimal.ONE);
 
     OwnersReport or = new OwnersReport(le);
-    or.setOwners(owners.entrySet()
-                     .stream()
-                     .map(e -> new OwnerInfo(e.getValue(), root.getPerson(e.getKey())))
-                     .collect(Collectors.toList()));
+    or.setOwners(owners.entrySet().stream().map(e -> new OwnerInfo(e.getValue(), root.getPerson(e.getKey()))).collect(Collectors.toList()));
 
     return or;
   }
