@@ -23,6 +23,9 @@ import one.microstream.reference.Lazy;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Root class for MicroStream.
+ */
 public class BatRoot {
   private Map<String, Lazy<Person>> physicalEntities = new TreeMap<>();
   private Map<String, Lazy<LegalEntity>> legalEntities = new TreeMap<>();
