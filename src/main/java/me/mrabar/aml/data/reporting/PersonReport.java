@@ -53,7 +53,10 @@ public class PersonReport {
         owner.getName(),
         owner.getId(),
         owner.getStatus(),
-        shares.stream().sorted(Comparator.comparing(Share::getShare).reversed()).map(Share::toString).collect(Collectors.joining("\n\t"))
+        shares.stream()
+            .sorted(Comparator.comparing(Share::getShare).reversed())
+            .map(Share::toString)
+            .collect(Collectors.joining("\n\t"))
     );
 
   }

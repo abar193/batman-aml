@@ -16,138 +16,81 @@
 
 package me.mrabar.aml.engine;
 
-import me.mrabar.aml.data.graph.AbstractEntity;
 import me.mrabar.aml.data.graph.LegalEntity;
-import me.mrabar.aml.data.graph.OwnershipEdge;
 import me.mrabar.aml.data.graph.Person;
-import me.mrabar.aml.data.reporting.OwnerInfo;
 import me.mrabar.aml.data.reporting.OwnersReport;
 import me.mrabar.aml.data.reporting.PersonReport;
-import me.mrabar.aml.data.reporting.Share;
-import one.microstream.persistence.types.Storer;
-import one.microstream.storage.types.EmbeddedStorage;
-import one.microstream.storage.types.EmbeddedStorageManager;
 
 import java.math.BigDecimal;
-import java.util.*;
-import java.util.stream.Collectors;
 
-public class BatEngine implements BatEngineInterface {
-  private final BatRoot root = new BatRoot();
+public interface BatEngine {
 
-  private final EmbeddedStorageManager storageManager = EmbeddedStorage.start(root);
-  private final Storer eagerStorer = storageManager.createEagerStorer();
-
-  public BatRoot debugRoot() {
-    return root;
+  /**
+   * @return initialized BatEngineInterface implementation
+   */
+  static BatEngine getInstance() {
+    BatEngineImpl be = new BatEngineImpl();
+    be.init();
+    return be;
   }
 
-  public void storePerson(Person person) {
-    storageManager.store(root.savePerson(person));
-  }
+  /**
+   * Updates BatRoot by storing Person in a data storage.
+   */
+  void storePerson(Person person);
 
-  public void storeEntity(LegalEntity entity) {
-    storageManager.store(root.saveEntity(entity));
-  }
+  /**
+   * Updates BatRoot by storing LegalEntity in a data storage.
+   */
+  void storeEntity(LegalEntity entity);
 
-  public void linkPersonAndBusiness(String personId, String entityId, BigDecimal percentage) {
-    Person p = root.getPerson(personId);
-    LegalEntity l = root.getEntity(entityId);
+  boolean containsPerson(String pid);
+  boolean containsEntity(String eid);
 
-    OwnershipEdge edge = new OwnershipEdge(p, l, percentage);
+  /**
+   * Links a Person, identified by personId to a LegalEntity, identified by entityId.
+   * Creates a new OwnershipEdge, where shareholder is a Person, and
+   *
+   * @throws IllegalArgumentException if Person or LegalEntity with said personId or entityId cannot be found.
+   */
+  void linkPersonAndBusiness(String personId, String entityId, BigDecimal percentage);
 
-    eagerStorer.storeAll(p.addShare(edge), l.addOwner(edge));
-    eagerStorer.commit();
-  }
+  void linkBusinesses(String ownerId, String targetId, BigDecimal percentage);
 
-  public void linkBusinesses(String ownerId, String targetId, BigDecimal percentage) {
-    LegalEntity owner = root.getEntity(ownerId);
-    LegalEntity target = root.getEntity(targetId);
+  /**
+   * Returns a report with all the companies that this Person has shares in.
+   * Does not determine actual amount of shares owned (Share.share == null).
+   * <p>
+   * Uses BFS and should be faster than personOwnership().
+   *
+   * @throws IllegalArgumentException if Person with such pid is not found.
+   */
+  PersonReport personCompanies(String pid);
 
-    OwnershipEdge edge = new OwnershipEdge(owner, target, percentage);
+  /**
+   * Reports actual percentage of shares owned in each company by this person.
+   * <p/>
+   * Unlike personCompanies() this method uses recursive DFS algorithm and examines every single path
+   * without skipping a single node. It might get slower (and we risk StackOverflowException), but it
+   * is the easies way to ensure that the result is accurate.
+   *
+   * @throws IllegalArgumentException if Person with such pid is not found.
+   */
+  PersonReport personOwnership(String pid);
 
-    eagerStorer.storeAll(owner.addShare(edge), target.addOwner(edge));
-    eagerStorer.commit();
-  }
+  /**
+   * Calculates percentage of shares owned by each Person, having a stake in this business.
+   * <p/>
+   * Like personOwnership(), this method performs a recursive DFS and examines every single path -
+   * it just goes in the opposite way and terminates only upon finding a Person.
+   *
+   * @throws IllegalArgumentException if LegalEntity with such cid is not found.
+   */
+  OwnersReport companyOwners(String cid);
 
-  @Override
-  public PersonReport personCompanies(String pid) {
-    Person p = root.getPerson(pid);
-    List<LegalEntity> businesses = new ArrayList<>();
-
-    Deque<OwnershipEdge> edges = new LinkedList<>(p.getShares());
-    while (!edges.isEmpty()) {
-      OwnershipEdge e = edges.removeFirst();
-      if (!businesses.contains(e.getBusiness())) {
-        LegalEntity le = e.getBusiness();
-        edges.addAll(le.getShares());
-        businesses.add(le);
-      }
-    }
-
-    PersonReport pr = new PersonReport(p);
-    pr.setShares(businesses.stream().map(Share::new).collect(Collectors.toList()));
-    return pr;
-  }
-
-  // For personOwnership, recursive DFS
-  private void visitNode(Map<String, BigDecimal> shares, LegalEntity le, BigDecimal percentage) {
-    if (shares.containsKey(le.getId())) {
-      shares.put(le.getId(), shares.get(le.getId()).add(percentage));
-    } else {
-      shares.put(le.getId(), percentage);
-    }
-    for (OwnershipEdge oe : le.getShares()) {
-      visitNode(shares, oe.getBusiness(), percentage.multiply(oe.getPercentage()));
-    }
-  }
-
-  public PersonReport personOwnership(String pid) {
-    Person p = root.getPerson(pid);
-    Map<String, BigDecimal> shares = new HashMap<>();
-
-    for (OwnershipEdge oe : p.getShares()) {
-      visitNode(shares, oe.getBusiness(), oe.getPercentage());
-    }
-
-    PersonReport pr = new PersonReport(p);
-    pr.setShares(shares.entrySet().stream().map(e -> new Share(root.getEntity(e.getKey()), e.getValue())).collect(Collectors.toList()));
-    return pr;
-  }
-
-  private void visitNodeReverse(Map<String, BigDecimal> owners, LegalEntity le, BigDecimal percentage) {
-    for (OwnershipEdge oe : le.getOwners()) {
-      AbstractEntity ae = oe.getShareholder();
-      if (ae instanceof Person) {
-        BigDecimal newPercentage = percentage.multiply(oe.getPercentage());
-        if (owners.containsKey(ae.getId())) {
-          newPercentage = newPercentage.add(owners.get(ae.getId()));
-        }
-        owners.put(ae.getId(), newPercentage);
-      } else {
-        visitNodeReverse(owners, (LegalEntity) ae, percentage.multiply(oe.getPercentage()));
-      }
-    }
-  }
-
-  public OwnersReport companyOwners(String cid) {
-    Map<String, BigDecimal> owners = new HashMap<>();
-    LegalEntity le = root.getEntity(cid);
-    visitNodeReverse(owners, le, BigDecimal.ONE);
-
-    OwnersReport or = new OwnersReport(le);
-    or.setOwners(owners.entrySet().stream().map(e -> new OwnerInfo(e.getValue(), root.getPerson(e.getKey()))).collect(Collectors.toList()));
-
-    return or;
-  }
-
-  public void init() {
-    if (storageManager.root() == null) {
-      storageManager.storeRoot();
-    }
-  }
-
-  public void shutdown() {
-    storageManager.shutdown();
-  }
+  /**
+   * According to MicroStream documentation, calling this method is optional, and nothing bad will
+   * happen if we forget.
+   */
+  void shutdown();
 }
