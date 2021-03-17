@@ -38,30 +38,37 @@ public class BatService implements Service {
 
   @Override
   public void update(Routing.Rules rules) {
-    rules
+    rules.get("/", this::index)
         .get("/person/{pid}/companies", this::getPersonReport)
         .get("/person/{pid}/shares", this::getPersonOwnership)
-
         .get("/entity/{eid}/owners", this::getOwnershipReport);
+  }
+
+  private void index(ServerRequest request, ServerResponse response) {
+    response.status(200).headers().add("Content-Type", "text/html; charset=UTF-8");
+    response.send("<html><head><title>BATMAN AML</title></head><body><ul>" +
+                      "<li><a href='/aml/person/:id/shares'>Calculate exact shares of a person</a></li>" +
+                      "<li><a href='/aml/person/:id/companies'>Just list all companies a person owns</a></li>" +
+                      "<li><a href='/aml/entity/:id/owners'>Find all owners of a company</a></li></body></html>");
   }
 
   private void reportPerson(ServerRequest request, ServerResponse response, boolean full) {
     String pid = request.path().param("pid");
 
-    if(!batEngine.containsPerson(pid)) {
-      response.status(Http.Status.NOT_FOUND_404)
-          .send(JSON.createObjectBuilder()
-                    .add("error",
-                         "Person not found, your invalid request has been reported to the authorities" +
-                             " and your manager")
-                    .build());
+    if (!batEngine.containsPerson(pid)) {
+      response.status(Http.Status.NOT_FOUND_404).send(JSON.createObjectBuilder()
+                                                          .add("error",
+                                                               "Person not found, your invalid request has been " +
+                                                                   "reported to the authorities" +
+                                                                   " and your manager"
+                                                          )
+                                                          .build());
       return;
     }
 
     PersonReport pr = (full) ? batEngine.personOwnership(pid) : batEngine.personCompanies(pid);
 
-    response.status(Http.Status.OK_200)
-        .send(BatUtils.bindReport(JSON, pr));
+    response.status(Http.Status.OK_200).send(BatUtils.bindReport(JSON, pr));
   }
 
   private void getPersonReport(ServerRequest request, ServerResponse response) {
@@ -75,17 +82,14 @@ public class BatService implements Service {
   private void getOwnershipReport(ServerRequest request, ServerResponse response) {
     String eid = request.path().param("eid");
 
-    if(!batEngine.containsEntity(eid)) {
+    if (!batEngine.containsEntity(eid)) {
       response.status(Http.Status.NOT_FOUND_404)
-          .send(JSON.createObjectBuilder()
-                    .add("error", "Company not found")
-                    .build());
+          .send(JSON.createObjectBuilder().add("error", "Company not found").build());
       return;
     }
 
     OwnersReport or = batEngine.companyOwners(eid);
 
-    response.status(Http.Status.OK_200)
-        .send(BatUtils.bindReport(JSON, or));
+    response.status(Http.Status.OK_200).send(BatUtils.bindReport(JSON, or));
   }
 }

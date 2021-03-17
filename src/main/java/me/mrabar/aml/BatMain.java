@@ -41,16 +41,16 @@ public class BatMain {
 
     Config config = Config.create();
 
-
     WebServer server = WebServer.builder(createRouting())
         .addMediaSupport(JsonpSupport.create())
         .config(config.get("server"))
+        .port(8087)
         .build();
 
     server.start()
-
         .thenAccept(ws -> {
-          System.out.println("Greeting, mister Wayne, your service at http://localhost:" + ws.port() + "/aml is ready");
+          System.out.println("Greeting, master Wayne, your service at http://localhost:" + ws.port()
+                                 + "/aml is ready");
           ws.whenShutdown().thenRun(() -> System.out.println("TIME TO SERVE SOME JUSTICE!"));
         })
         .exceptionally(t -> {

@@ -40,6 +40,10 @@ public class BatRoot {
     return legalEntities;
   }
 
+  public boolean isEmpty() {
+    return physicalEntities.isEmpty() && legalEntities.isEmpty();
+  }
+
   public boolean hasPerson(String id) {
     return physicalEntities.containsKey(id);
   }

@@ -29,9 +29,7 @@ public interface BatEngine {
    * @return initialized BatEngineInterface implementation
    */
   static BatEngine getInstance() {
-    BatEngineImpl be = new BatEngineImpl();
-    be.init();
-    return be;
+    return BatEngineImpl.getInstance();
   }
 
   /**

@@ -24,6 +24,7 @@ import me.mrabar.aml.data.reporting.OwnerInfo;
 import me.mrabar.aml.data.reporting.OwnersReport;
 import me.mrabar.aml.data.reporting.PersonReport;
 import me.mrabar.aml.data.reporting.Share;
+import me.mrabar.aml.datagen.DataGenerator;
 import one.microstream.persistence.types.Storer;
 import one.microstream.storage.types.EmbeddedStorage;
 import one.microstream.storage.types.EmbeddedStorageManager;
@@ -33,13 +34,21 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class BatEngineImpl implements BatEngine {
+  private static BatEngineImpl instance = null;
+
   private final BatRoot root = new BatRoot();
 
   private final EmbeddedStorageManager storageManager = EmbeddedStorage.start(root);
   private final Storer eagerStorer = storageManager.createEagerStorer();
 
-  public BatRoot debugRoot() {
-    return root;
+  public static synchronized BatEngineImpl getInstance() {
+    if(instance == null) {
+      instance = new BatEngineImpl();
+      instance.init();
+      return instance;
+    } else {
+      return instance;
+    }
   }
 
   public void storePerson(Person person) {
@@ -54,6 +63,10 @@ public class BatEngineImpl implements BatEngine {
     Person p = root.getPerson(personId);
     LegalEntity l = root.getEntity(entityId);
 
+    if(percentage.compareTo(BigDecimal.ONE) > 0) {
+      percentage = BigDecimal.valueOf(percentage.doubleValue() / 100.0d);
+    }
+
     OwnershipEdge edge = new OwnershipEdge(p, l, percentage);
 
     eagerStorer.storeAll(p.addShare(edge), l.addOwner(edge));
@@ -64,6 +77,9 @@ public class BatEngineImpl implements BatEngine {
     LegalEntity owner = root.getEntity(ownerId);
     LegalEntity target = root.getEntity(targetId);
 
+    if(percentage.compareTo(BigDecimal.ONE) > 0) {
+      percentage = BigDecimal.valueOf(percentage.doubleValue() / 100.0d);
+    }
     OwnershipEdge edge = new OwnershipEdge(owner, target, percentage);
 
     eagerStorer.storeAll(owner.addShare(edge), target.addOwner(edge));
@@ -142,13 +158,15 @@ public class BatEngineImpl implements BatEngine {
   }
 
   public void init() {
-    if (storageManager.root() == null) {
+    if (((BatRoot)storageManager.root()).isEmpty()) {
       storageManager.storeRoot();
+      DataGenerator.generateBatVerseNodes(this);
     }
   }
 
   public void shutdown() {
     storageManager.shutdown();
+    instance = null;
   }
 
   @Override
