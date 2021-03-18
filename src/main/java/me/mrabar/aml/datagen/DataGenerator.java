@@ -17,13 +17,29 @@
 package me.mrabar.aml.datagen;
 
 import me.mrabar.aml.data.ClientStatus;
+import me.mrabar.aml.data.graph.AbstractEntity;
 import me.mrabar.aml.data.graph.LegalEntity;
 import me.mrabar.aml.data.graph.Person;
 import me.mrabar.aml.engine.BatEngine;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+/**
+ * This class is not a good example of how I normally code. <p/>
+ *
+ * It is a good example of how I code when I have only a couple of hours left before the demo,
+ * and I know that I'm writing a one-time code.
+ */
 public class DataGenerator {
   public static void generateBatVerseNodes(final BatEngine be) {
     be.storePerson(new Person("A", "Bruce Wayne", ClientStatus.GREEN));
@@ -86,7 +102,147 @@ public class DataGenerator {
     }
   }
 
-//  private static int companyCounter = 1;
-//  private static int clientCounter = 1;
+  public static void fillMemory(BatEngine be, int simpleRecords, int bitMessy, int bigMessy) {
+    random = new Random(simpleRecords);
+
+    ExecutorService executor = Executors.newFixedThreadPool(4);
+    for(int i = 0; i < simpleRecords; i++) {
+      simpleCase(be);
+    }
+    System.out.println("Simple cases done");
+    for(int i = 0; i < bitMessy; i++) {
+      proxyCases(be, 5 + random.nextInt(5), 5, 15);
+    }
+    System.out.println("Advanced cases done");
+    for(int i = 0; i < bigMessy; i++) {
+      proxyCases(be, 7 + random.nextInt(5), 15, 10);
+    }
+  }
+
+  private static Random random;
+  private static int companyCounter = 1;
+  private static int clientCounter = 1;
+
+  private static final ClientStatus[] statuses = new ClientStatus[] {
+      ClientStatus.GREEN,
+      ClientStatus.YELLOW,
+      ClientStatus.RED,
+      ClientStatus.BLACK,
+      ClientStatus.UNKNOWN
+  };
+
+  private static final String[] names = new String[] {
+      // Generated with http://listofrandomnames.com/index.cfm?generated
+    "Jarret", "Noe", "Dominique", "Eliseo", "Nathanial",
+      "Lu", "Jonnie", "Maryrose", "Sherilyn", "Brigette",
+      "Dexter", "Donya", "Jc", "Ona", "Nguyet",
+      "Alta", "Kathe", "Cris", "Jayme", "Olinda",
+      "Carmine", "Odette", "Rocio", "Yu", "Bar"
+  };
+
+  private static final String[] companyNames = new String[] {
+      // Generated with help of https://www.fantasynamegenerators.com/company-names.php
+      "Lemon", "Apple", "Banana", "Stare", "Freak", "Media", "Production", "High", "Fire",
+      "House", "Pluto", "Earth", "Venus", "Rabbit", "Wolf", "Apex", "Omega", "Ghost", "Aid",
+      "Security", "Micro", "Vertex", "Co", "Night"
+  };
+
+  private static ClientStatus status() {
+    return statuses[clientCounter % statuses.length];
+  }
+
+  private static String name() {
+    int i = clientCounter;
+    int j = 0;
+    StringBuilder sb = new StringBuilder("");
+    while(i > 0 && j++ < 4) {
+      sb.append(' ').append(names[i % names.length]);
+      i /= names.length;
+    }
+    return sb.toString().trim();
+  }
+
+  private static String companyName() {
+    int i = companyCounter;
+    int j = 0;
+    StringBuilder sb = new StringBuilder("");
+    while(i > 0 && j++ < 4) {
+      sb.append(' ').append(companyNames[i % companyNames.length]);
+      i /= companyNames.length;
+    }
+    return sb.toString().trim();
+  }
+
+  private static Person nextPerson(BatEngine be) {
+    String cid = Integer.toString(clientCounter++);
+    Person p = new Person("C" + cid, name(), status());
+    be.storePerson(p);
+    return p;
+  }
+
+  private static LegalEntity nextEntity(BatEngine be) {
+    LegalEntity le = new LegalEntity("E" + companyCounter++, companyName());
+    be.storeEntity(le);
+    return le;
+  }
+
+  private static void simpleCase(BatEngine be) {
+    List<Person> personList = IntStream.range(0, random.nextInt(4) + 1)
+        .mapToObj(i -> nextPerson(be)).collect(Collectors.toList());
+    personList.forEach(be::storePerson);
+
+    final LegalEntity le = nextEntity(be);
+    be.storeEntity(le);
+
+    BigDecimal value = BigDecimal.valueOf(1.0d / (double)personList.size());
+
+    personList.forEach(p -> be.linkPersonAndBusiness(p.getId(), le.getId(), value));
+  }
+
+  private static void proxyCases(BatEngine be, int users, int proxies, int reals) {
+    List<Person> personList = IntStream.range(0, users)
+        .mapToObj(i -> nextPerson(be))
+        .collect(Collectors.toList());
+
+    List<LegalEntity> trustsAndShells = IntStream.range(0, proxies)
+        .mapToObj(i -> nextEntity(be))
+        .collect(Collectors.toList());
+
+    // to avoid cross-holdings, a newer trust/shell may not own an older trust/shell
+    List<AbstractEntity> allowedNodes = new ArrayList<>(personList);
+
+    // Level 1: link proxies to each other, somehow, I don't care
+    for(LegalEntity le: trustsAndShells) {
+      int owners = random.nextInt(8) + 1;
+      BigDecimal value = BigDecimal.valueOf(1.0d / (double)owners);
+
+      for(int i = 0; i < owners; i++) {
+        AbstractEntity ae = allowedNodes.get(random.nextInt(allowedNodes.size()));
+        if(ae instanceof Person) {
+          be.linkPersonAndBusiness(ae.getId(), le.getId(), value);
+        } else {
+          be.linkBusinesses(ae.getId(), le.getId(), value);;
+        }
+      }
+
+      allowedNodes.add(le);
+    }
+
+    // Level 2: Now that ownership structure of shell-companies is messy enough, time to register normal companies
+    for(int i = 0; i < reals; i++) {
+      LegalEntity le = nextEntity(be);
+      int owners = random.nextInt(5) + 1;
+      BigDecimal value = BigDecimal.valueOf(1.0d / (double)owners);
+
+      for(int j = 0; j < owners; j++) {
+        AbstractEntity ae = allowedNodes.get(random.nextInt(allowedNodes.size()));
+        if(ae instanceof Person) {
+          be.linkPersonAndBusiness(ae.getId(), le.getId(), value);
+        } else {
+          be.linkBusinesses(ae.getId(), le.getId(), value);;
+        }
+      }
+    }
+  }
 
 }

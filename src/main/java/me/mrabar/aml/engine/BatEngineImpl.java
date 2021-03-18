@@ -26,7 +26,7 @@ import me.mrabar.aml.data.reporting.PersonReport;
 import me.mrabar.aml.data.reporting.Share;
 import me.mrabar.aml.datagen.DataGenerator;
 import one.microstream.persistence.types.Storer;
-import one.microstream.storage.types.EmbeddedStorage;
+import one.microstream.storage.configuration.Configuration;
 import one.microstream.storage.types.EmbeddedStorageManager;
 
 import java.math.BigDecimal;
@@ -38,7 +38,11 @@ public class BatEngineImpl implements BatEngine {
 
   private final BatRoot root = new BatRoot();
 
-  private final EmbeddedStorageManager storageManager = EmbeddedStorage.start(root);
+  private final EmbeddedStorageManager storageManager = Configuration.Default()
+      .setChannelCount(Integer.parseInt(System.getenv().getOrDefault("CHANNELS", "4")))
+      .createEmbeddedStorageFoundation()
+      .start(root);
+
   private final Storer eagerStorer = storageManager.createEagerStorer();
 
   public static synchronized BatEngineImpl getInstance() {
@@ -161,6 +165,11 @@ public class BatEngineImpl implements BatEngine {
     if (((BatRoot)storageManager.root()).isEmpty()) {
       storageManager.storeRoot();
       DataGenerator.generateBatVerseNodes(this);
+      System.out.println("First launch: generating data. Please stand by...");
+      DataGenerator.fillMemory(this, 15000, 500, 50);
+      System.out.println("Data generated, we're good to go");
+    } else {
+      ((BatRoot) storageManager.root()).printDebugInfo();
     }
   }
 
@@ -177,5 +186,10 @@ public class BatEngineImpl implements BatEngine {
   @Override
   public boolean containsEntity(String eid) {
     return root.hasEntity(eid);
+  }
+
+  public void batchInsert(List<Person> personList, List<LegalEntity> legalEntities) {
+    eagerStorer.storeAll(root.batchInsertPersons(personList), root.batchInsertEntities(legalEntities));
+    eagerStorer.commit();
   }
 }

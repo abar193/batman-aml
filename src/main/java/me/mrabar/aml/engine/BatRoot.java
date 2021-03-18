@@ -20,8 +20,11 @@ import me.mrabar.aml.data.graph.LegalEntity;
 import me.mrabar.aml.data.graph.Person;
 import one.microstream.reference.Lazy;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Root class for MicroStream.
@@ -67,4 +70,24 @@ public class BatRoot {
 
     return legalEntities.get(id).get();
   }
+
+  public void printDebugInfo() {
+    System.out.format("Bat Root with %d phyical entities and %d legal entities%n",
+                      physicalEntities.size(),
+                      legalEntities.size());
+  }
+
+  public Map<String, Lazy<Person>> batchInsertPersons(List<Person> personList) {
+    physicalEntities.putAll(personList.stream()
+                                .collect(Collectors.toMap(Person::getId, Lazy::Reference)));
+    return physicalEntities;
+  }
+
+  public Map<String, Lazy<LegalEntity>> batchInsertEntities(List<LegalEntity> personList) {
+    legalEntities.putAll(personList.stream()
+                                .collect(Collectors.toMap(LegalEntity::getId, Lazy::Reference)));
+    return legalEntities;
+  }
+
+
 }
